@@ -65,7 +65,7 @@ on_login = "dana_group.login_redirect.on_login"
 # 	"Role": "home_page"
 # }
 role_home_page = {
-    "v3": "cat"   # route or page name; use "stock" for /stock
+    "v3": "stock_entry"   # route or page name; use "stock" for /stock
 }
 
 # Generators
@@ -246,3 +246,11 @@ role_home_page = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
+fixtures = [
+    {
+        "doctype": "Role",
+        "filters": [
+            ["name", "=", "v3"]
+        ]
+    }
+]

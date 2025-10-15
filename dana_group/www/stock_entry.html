@@ -10,7 +10,11 @@
     <link rel="stylesheet" href="/assets/dana_group/css/stock.css">
    
 </head>
-
+{% if frappe.session.user == "Guest" %}
+  <script>
+    window.location.href = "/login";
+  </script>
+{% else %}
 <body class="bg-gray-100 font-sans">
     {% set user = frappe.db.sql(
         """SELECT name, user_image FROM `tabUser` WHERE email=%s""",
@@ -793,4 +797,5 @@ async function saveIssue() {
 
     <script src="/assets/dana_group/js/stock.js"></script>
 </body>
+{% endif %}
 </html>
