@@ -252,5 +252,12 @@ fixtures = [
         "filters": [
             ["name", "=", "v3"]
         ]
+    },
+    {
+        "doctype": "Custom DocPerm",
+        "filters": [
+            ["role", "=", "v3"],
+            ["parent", "=", "Serial and Batch Bundle"]
+        ]
     }
 ]
