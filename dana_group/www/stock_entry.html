@@ -1,0 +1,796 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Entry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/assets/dana_group/css/stock.css">
+   
+</head>
+
+<body class="bg-gray-100 font-sans">
+    {% set user = frappe.db.sql(
+        """SELECT name, user_image FROM `tabUser` WHERE email=%s""",
+        frappe.session.user,
+        as_dict=True
+    ) %}
+    {% if user and user[0] %}
+    {% set u = user[0] %}
+
+
+
+
+<header class="w-full bg-white shadow-sm">
+    <div class="container mx-auto p-3 flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <a href="/" class="text-lg font-semibold text-gray-800">Stock</a>
+      </div>
+  
+      <div class="relative">
+        <button id="userAvatarBtn" class="flex items-center space-x-2 rounded-full hover:bg-gray-100 p-1 focus:outline-none" type="button" aria-expanded="false" aria-controls="userDropdown">
+          <img src="{{ u.user_image or '/assets/frappe/images/default-avatar.png' }}" alt="avatar" class="w-9 h-9 rounded-full object-cover">
+          <span class="hidden sm:inline-block text-sm text-gray-700">
+            {{ frappe.session.user }}
+          </span>
+          <svg id="userAvatarChevron" class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+  
+        <div id="userDropdown" class="hidden absolute right-0 mt-2 w-40 bg-white border rounded-md shadow-lg z-50">
+          <a href="/app" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Desk</a>
+          <button id="logoutBtn" class="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% endif %}
+  {% set machines = frappe.get_all("Machine", fields=["name1"]) %}
+  {% set operators = frappe.get_all("Operator", fields=["name1"]) %}
+  {% set sales_orders = frappe.get_all("Sales Order", fields=["name"]) %}
+  {% set employees = frappe.get_all("Employee", fields=["employee_name", "name"]) %}
+
+
+
+
+    
+    <div class="container mx-auto p-4">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Stock Management</h1>
+        <div class="mb-4 border-b border-gray-200">
+            <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
+                <li class="mr-2"><button class="tab-btn inline-block p-4 border-b-2 border-transparent rounded-t-lg active" data-tab-target="#receipt">Material Receipt</button></li>
+                <li class="mr-2"><button class="tab-btn inline-block p-4 border-b-2 border-transparent rounded-t-lg" data-tab-target="#issue">Material Issue</button></li>
+                <li><button class="tab-btn inline-block p-4 border-b-2 border-transparent rounded-t-lg" data-tab-target="#edit-batch-view">Batch Edit</button></li>
+            </ul>
+        </div>
+        <div>
+            <div class="p-4 rounded-lg bg-white shadow" id="receipt">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+                    <input type="text" placeholder="Search Receipts..." class="border p-2 rounded w-full md:w-1/2">
+                    <button class="modal-open-btn w-full md:w-auto bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-600" data-modal-target="#receiptModal">+ New Receipt</button>
+                </div>
+                <div class="overflow-x-auto"><p class="text-gray-600">Material Receipt list view will be populated here.</p></div>
+            </div>
+            <div class="hidden p-4 rounded-lg bg-white shadow" id="issue">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+                    <input type="text" placeholder="Search Issues..." class="border p-2 rounded w-full md:w-1/2">
+                    <button class="modal-open-btn w-full md:w-auto bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-600" data-modal-target="#issueModal">+ New Issue</button>
+                </div>
+                <div class="overflow-x-auto"><p class="text-gray-600">Material Issue list view will be populated here.</p></div>
+            </div>
+            <div class="hidden p-4 rounded-lg bg-white shadow" id="edit-batch-view">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+                    <input type="text" placeholder="Search Batches..." class="border p-2 rounded w-full md:w-1/2">
+                    <button class="modal-open-btn w-full md:w-auto bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-600" data-modal-target="#editBatchModal">+ Edit Batch</button>
+                </div>
+                <div class="overflow-x-auto"><p class="text-gray-600">Batch Edit list view will be populated here.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="receiptModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-start p-4 opacity-0">
+        <div class="modal-content bg-white my-8 p-6 rounded-lg shadow-xl w-full max-w-4xl transform -translate-y-10">
+          <h2 class="text-xl font-semibold mb-4 text-gray-700">New Material Receipt</h2>
+          <form id="receiptForm" onsubmit="event.preventDefault();">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <select id="machine_name" class="border p-2 rounded w-full">
+                <option value="">Select Machine</option>
+                {% for m in machines %}
+                  <option value="{{ m.name1 }}">{{ m.name1 }}</option>
+                {% endfor %}
+              </select>
+              
+              <select id="operator_name" class="border p-2 rounded w-full">
+                <option value="">Select Operator</option>
+                {% for o in operators %}
+                  <option value="{{ o.name1 }}">{{ o.name1 }}</option>
+                {% endfor %}
+              </select>
+              <input id="receipt_comments" type="text" placeholder="Comments" class="border p-2 rounded w-full" />
+              
+
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full bg-white responsive-table">
+                <thead class="bg-gray-200">
+                  <tr>
+                    <th class="py-2 px-3 text-left">Batch No.</th>
+                    <th class="py-2 px-3 text-left">Item Code</th>
+                    <th class="py-2 px-3 text-left">Warehouse</th>
+                    <th class="py-2 px-3 text-right">Avail Qty</th>
+                    <th class="py-2 px-3 text-right">Receipt Qty</th>
+                    
+                    <th class="w-10"></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <button type="button" class="add-receipt-row-btn  mt-4 text-sm bg-gray-200 text-gray-700 py-1 px-3 rounded hover:bg-gray-300">+ Add Row</button>
+            <div id="receiptModalError" class="hidden bg-red-50 border border-red-200 text-red-700 p-2 mt-2 rounded mb-4"></div>
+            <div class="flex justify-end gap-4 mt-6">
+              <button type="button" class="modal-close-btn bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded hover:bg-gray-400">Cancel</button>
+              <button type="button" id="save-receipt-btn" class="bg-green-500 text-white font-bold py-2 px-4 rounded hover:bg-green-600 flex items-center">
+                <span id="save-receipt-text">Save Receipt</span>
+                <svg id="save-receipt-spinner" class="hidden animate-spin w-4 h-4 ml-2" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    <div id="issueModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-start p-4 opacity-0">
+        <div class="modal-content bg-white my-8 p-6 rounded-lg shadow-xl w-full max-w-5xl transform -translate-y-10">
+            <h2 class="text-xl font-semibold mb-4">New Material Issue</h2>
+            <form onsubmit="event.preventDefault();">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  <select id="issue-sales-order" class="border p-2 rounded w-full">
+                    <option value="">Select Sales Order</option>
+                    {% for so in sales_orders %}
+                      <option value="{{ so.name }}">{{ so.name }}</option>
+                    {% endfor %}
+                  </select>
+
+
+                  <select id="issue-salesman" class="border p-2 rounded w-full">
+                    <option value="">Select Salesman</option>
+                    {% for e in employees %}
+                      <option value="{{ e.name }}">{{ e.employee_name }}</option>
+                    {% endfor %}
+                  </select>
+                    <select id="issue_machine_name" class="border p-2 rounded w-full">
+                      <option value="">Select Machine</option>
+                      {% for m in machines %}
+                        <option value="{{ m.name1 }}">{{ m.name1 }}</option>
+                      {% endfor %}
+                    </select>
+                    
+                    <select id="issue_operator_name" class="border p-2 rounded w-full">
+                      <option value="">Select Operator</option>
+                      {% for o in operators %}
+                        <option value="{{ o.name1 }}">{{ o.name1 }}</option>
+                      {% endfor %}
+                    </select>
+                    <input id="issue_comments" type="text" placeholder="Comments" class="border p-2 rounded w-full" />
+
+                </div>
+                
+                <div class="overflow-x-auto">
+                  <table class="min-w-full bg-white responsive-table">
+                      <thead class="bg-gray-200">
+                          <tr>
+                              <th class="py-2 px-3 text-left">Batch No.</th>
+                              <th class="py-2 px-3 text-left">Item Code</th>
+                              <th class="py-2 px-3 text-left">S Warehouse</th>
+                              <th class="py-2 px-3 text-right">Avail Qty</th>
+                              <th class="py-2 px-3 text-right">Issue Qty</th>
+                              <th class="w-10"></th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          <tr>
+                              <td data-label="Batch No." class="p-2">
+                                  <input type="text" onblur="fetchIssueBatchData(this)" class="batch-no border p-2 rounded w-full">
+                                  <div class="batch-error text-sm text-red-600 mt-1 hidden"></div>
+                              </td>
+                              <td data-label="Item Code" class="p-2">
+                                  <input type="text" class="item-code border p-2 rounded w-full bg-gray-100" readonly>
+                              </td>
+                              <td data-label="S Warehouse" class="p-2">
+                                  <input type="text" class="s-warehouse border p-2 rounded w-full bg-gray-100" readonly>
+                              </td>
+                              <td data-label="Avail Qty" class="p-2">
+                                  <input type="number" class="available-qty border p-2 rounded w-full bg-gray-100 text-right" readonly>
+                              </td>
+                              <td data-label="Issue Qty" class="p-2">
+                                  <input type="number" step="any" class="qty border p-2 rounded w-full text-right">
+                              </td>
+
+                              
+                              <td data-label="Action" class="p-2 text-center">
+                                  <button type="button" class="remove-row-btn text-red-500" style="padding:10px !important">X</button>
+                              </td>
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
+
+                <button type="button" class="add-issue-row-btn mt-4 text-sm bg-gray-200 text-gray-700 py-1 px-3 rounded hover:bg-gray-300">+ Add Row</button>
+                <div id="issue-message" class="mt-3 text-sm hidden"></div>
+
+                <div class="flex justify-end gap-4 mt-6">
+                    <button type="button" class="modal-close-btn bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded hover:bg-gray-400">Cancel</button>
+                    <button type="submit" id="save-issue-btn" class="bg-green-500 text-white font-bold py-2 px-4 rounded hover:bg-green-600 flex items-center">
+                        <span id="save-issue-text">Save Issue</span>
+                        <svg id="save-issue-spinner" class="hidden animate-spin w-4 h-4 ml-2" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                      </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="editBatchModal" class="modal fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center p-4 opacity-0 ">
+        <div class="modal-content bg-white p-6 rounded-lg shadow-xl w-full max-w-lg transform -translate-y-10">
+          <h2 class="text-xl font-semibold mb-4">Edit Batch</h2>
+          <form id="edit-batch-form">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input id="eb-batch-no" type="text" placeholder="Batch No." class="border p-2 rounded w-full" />
+              <input id="eb-item-code" type="text" placeholder="Item Code" class="border p-2 rounded w-full" readonly />
+              <input id="eb-qty" type="number" placeholder="Quantity" class="border p-2 rounded w-full" readonly />
+              <input id="eb-warehouse" type="text" placeholder="Warehouse" class="border p-2 rounded w-full" readonly />
+              <select id="eb-machine" class="border p-2 rounded w-full">
+                <option value="">Select Machine</option>
+                {% for m in machines %}
+                  <option value="{{ m.name1 }}">{{ m.name1 }}</option>
+                {% endfor %}
+              </select>
+              
+              <select id="eb-operator" class="border p-2 rounded w-full">
+                <option value="">Select Operator</option>
+                {% for o in operators %}
+                  <option value="{{ o.name1 }}">{{ o.name1 }}</option>
+                {% endfor %}
+              </select>
+              <input id="eb-book-salesperson" type="text" placeholder="Book for Salesperson" class="border p-2 rounded w-full md:col-span-2" />
+            </div>
+            <div class="flex justify-end gap-4 mt-6 items-center">
+              <div id="edit-batch-message" class="text-sm hidden"></div>
+              <button type="button" id="edit-batch-cancel" class="modal-close-btn bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded hover:bg-gray-400">Cancel</button>
+              <button type="submit" id="edit-batch-save" class="bg-yellow-500 text-white font-bold py-2 px-4 rounded hover:bg-yellow-600 flex items-center">
+                <span id="edit-batch-save-text">Update Batch</span>
+                <svg id="edit-batch-save-spinner" class="hidden animate-spin w-4 h-4 ml-2" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+  
+      <script>
+        document.addEventListener("DOMContentLoaded", function () {
+          const machineSelect = document.getElementById("machine_name");
+          const operatorSelect = document.getElementById("operator_name");
+          const saveBtn = document.getElementById("save-receipt-btn");
+          const receiptForm = document.getElementById("receiptForm");
+        
+          function validateForm() {
+            let valid = true;
+        
+            if (!machineSelect.value) {
+              machineSelect.classList.add("border-red-500");
+              valid = false;
+            } else {
+              machineSelect.classList.remove("border-red-500");
+            }
+        
+            if (!operatorSelect.value) {
+              operatorSelect.classList.add("border-red-500");
+              valid = false;
+            } else {
+              operatorSelect.classList.remove("border-red-500");
+            }
+        
+            const batchInputs = receiptForm.querySelectorAll(".batch-no");
+            batchInputs.forEach(input => {
+              if (!input.value.trim()) {
+                input.classList.add("border-red-500");
+                valid = false;
+              } else {
+                input.classList.remove("border-red-500");
+              }
+            });
+        
+            saveBtn.disabled = !valid;
+            if (!valid) {
+              saveBtn.classList.add("opacity-50", "cursor-not-allowed");
+            } else {
+              saveBtn.classList.remove("opacity-50", "cursor-not-allowed");
+            }
+        
+            return valid;
+          }
+        
+          machineSelect.addEventListener("change", validateForm);
+          operatorSelect.addEventListener("change", validateForm);
+          receiptForm.addEventListener("input", validateForm);
+          receiptForm.addEventListener("blur", validateForm, true);
+        
+          saveBtn.addEventListener("click", function (e) {
+            if (!validateForm()) {
+              e.preventDefault();
+              const errorDiv = document.getElementById("receiptModalError");
+              errorDiv.textContent = "Please fill all mandatory fields before saving.";
+              errorDiv.classList.remove("hidden");
+            }
+          });
+        
+          validateForm();
+        });
+        </script>
+        <script>
+          document.addEventListener("DOMContentLoaded", function () {
+            const issueForm = document.querySelector("#issueModal form");
+            const saveIssueBtn = document.getElementById("save-issue-btn");
+            const errorDiv = document.createElement("div");
+          
+            errorDiv.id = "issueModalError";
+            errorDiv.className = "hidden bg-red-50 border border-red-200 text-red-700 p-2 mt-2 rounded mb-4";
+            issueForm.insertBefore(errorDiv, issueForm.querySelector(".flex.justify-end"));
+          
+            const requiredFields = {
+              "issue-sales-order": "Sales Order",
+              "issue-salesman": "Salesman",
+              "issue-machine": "Machine",
+              "issue-operator": "Operator"
+            };
+          
+            function validateIssueForm() {
+              let valid = true;
+          
+              for (const [id, label] of Object.entries(requiredFields)) {
+                const field = document.getElementById(id);
+                if (!field.value.trim()) {
+                  field.classList.add("border-red-500");
+                  valid = false;
+                } else {
+                  field.classList.remove("border-red-500");
+                }
+              }
+              const batchInputs = issueForm.querySelectorAll(".batch-no");
+              batchInputs.forEach(input => {
+                if (!input.value.trim()) {
+                  input.classList.add("border-red-500");
+                  valid = false;
+                } else {
+                  input.classList.remove("border-red-500");
+                }
+              });
+          
+              saveIssueBtn.disabled = !valid;
+              saveIssueBtn.classList.toggle("opacity-50", !valid);
+              saveIssueBtn.classList.toggle("cursor-not-allowed", !valid);
+          
+              if (!valid) {
+                errorDiv.textContent = "Please fill all required fields before saving.";
+                errorDiv.classList.remove("hidden");
+              } else {
+                errorDiv.classList.add("hidden");
+              }
+          
+              return valid;
+            }
+          
+            issueForm.addEventListener("input", validateIssueForm);
+            issueForm.addEventListener("change", validateIssueForm);
+            issueForm.addEventListener("blur", validateIssueForm, true);
+            saveIssueBtn.addEventListener("click", function (e) {
+              if (!validateIssueForm()) {
+                e.preventDefault();
+              }
+            });
+          
+            validateIssueForm();
+          });
+          </script>
+          
+        
+    <script>
+        (function() {
+          const btn = document.getElementById('userAvatarBtn');
+          const dropdown = document.getElementById('userDropdown');
+          const logoutBtn = document.getElementById('logoutBtn');
+      
+          function closeDropdown() {
+            dropdown.classList.add('hidden');
+            btn.setAttribute('aria-expanded', 'false');
+          }
+          function openDropdown() {
+            dropdown.classList.remove('hidden');
+            btn.setAttribute('aria-expanded', 'true');
+          }
+      
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            dropdown.classList.toggle('hidden');
+            const expanded = btn.getAttribute('aria-expanded') === 'true';
+            btn.setAttribute('aria-expanded', String(!expanded));
+          });
+      
+          document.addEventListener('click', function(e) {
+            if (!dropdown.classList.contains('hidden')) {
+              if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+                closeDropdown();
+              }
+            }
+          });
+      
+          document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeDropdown();
+          });
+      
+          logoutBtn.addEventListener('click', function() {
+            window.location.href = '/?cmd=web_logout';
+          });
+        })();
+      </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+<script>
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabPanels = document.querySelectorAll('#receipt, #issue, #edit-batch-view');
+  
+  tabButtons.forEach(button => {
+      button.addEventListener('click', () => {
+          tabButtons.forEach(btn => btn.classList.remove('active'));
+          button.classList.add('active');
+          
+          const targetPanelId = button.getAttribute('data-tab-target');
+          tabPanels.forEach(panel => {
+              panel.classList.toggle('hidden', panel.id !== targetPanelId.substring(1));
+          });
+      });
+  });
+  
+  let openModal = null;
+  function showModal(modal) {
+      if (!modal) return;
+      openModal = modal;
+      modal.classList.add('is-open');
+      document.body.style.overflow = 'hidden'; 
+  }
+  
+  function hideModal(modal) {
+      if (!modal) return;
+      openModal = null;
+      modal.classList.remove('is-open');
+      document.body.style.overflow = ''; 
+      const tableBody = modal.querySelector('tbody');
+      if (tableBody) tableBody.innerHTML = '';
+  }
+  
+  document.querySelectorAll('.modal-open-btn').forEach(button => {
+      button.addEventListener('click', () => {
+          const modal = document.querySelector(button.dataset.modalTarget);
+          showModal(modal);
+      });
+  });
+  
+  document.querySelectorAll('.modal-close-btn').forEach(button => {
+      button.addEventListener('click', () => {
+          const modal = button.closest('.modal');
+          hideModal(modal);
+      });
+  });
+  
+  document.addEventListener('keydown', (e) => {
+      if (e.key === "Escape" && openModal) {
+          hideModal(openModal);
+      }
+  });
+  
+  function createReceiptRowHTML() {
+      return `
+          <tr class="even:bg-gray-50">
+              <td data-label="Batch No." class="p-2"><input type="text" placeholder="Scan/Enter Batch" onblur="fetchReceiptBatchData(this)" class="border p-2 rounded w-full batch-no"></td>
+              <td data-label="Item Code" class="p-2"><input type="text" class="border p-2 rounded w-full bg-gray-100 item-code" readonly></td>
+              <td data-label="Warehouse" class="p-2"><input type="text" class="border p-2 rounded w-full bg-gray-100 warehouse" readonly></td>
+              <td data-label="Avail Qty" class="p-2"><input type="number" class="border p-2 rounded w-full bg-gray-100 available-qty text-right" readonly></td>
+              <td data-label="Qty Rcvd" class="p-2"><input type="number" step="any" class="border p-2 rounded w-full text-right qty"></td>
+              <td class="p-2 text-center"><button type="button" onclick="this.closest('tr').remove()" class="text-red-500 hover:text-red-700 font-bold py-2 px-4 rounded" style="padding:10px">X</button></td>
+          </tr>`;
+  }
+  
+  function createIssueRowHTML() {
+    return `
+      <tr>
+        <td data-label="Batch No." class="p-2">
+          <input type="text" onblur="fetchIssueBatchData(this)" class="batch-no border p-2 rounded w-full">
+          <div class="batch-error text-sm text-red-600 mt-1 hidden"></div>
+        </td>
+        <td data-label="Item Code" class="p-2"><input type="text" class="item-code border p-2 rounded w-full bg-gray-100" readonly></td>
+        <td data-label="S Warehouse" class="p-2"><input type="text" class="s-warehouse border p-2 rounded w-full bg-gray-100" readonly></td>
+        <td data-label="Avail Qty" class="p-2"><input type="number" class="available-qty border p-2 rounded w-full bg-gray-100 text-right" readonly></td>
+        <td data-label="Issue Qty" class="p-2"><input type="number" step="any" class="qty border p-2 rounded w-full text-right"></td>
+         
+        <td data-label="Action" class="p-2 text-center"><button type="button" class="remove-row-btn text-red-500" style="padding:10px !important">X</button></td>
+      </tr>`;
+}
+  document.querySelectorAll('.add-receipt-row-btn').forEach(button => {
+      button.addEventListener('click', function() {
+          const tableBody = this.closest('form').querySelector('tbody');
+          tableBody.insertAdjacentHTML('beforeend', createReceiptRowHTML());
+      });
+  });
+  
+  document.querySelectorAll('.add-issue-row-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        const tableBody = this.closest('form').querySelector('tbody');
+        tableBody.insertAdjacentHTML('beforeend', createIssueRowHTML());
+    });
+});
+  
+  async function fetchReceiptBatchData(element) {
+      await fetchBatchData(element, false);
+  }
+  
+  async function fetchIssueBatchData(element) {
+      await fetchBatchData(element, true);
+  }
+  async function saveReceipt() {
+      const receiptForm = document.getElementById('receiptForm');
+      const tbody = receiptForm.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const machineInput = document.getElementById('machine_name');
+      const operatorInput = document.getElementById('operator_name');
+      const saveBtn = document.getElementById('save-receipt-btn');
+      const saveText = document.getElementById('save-receipt-text');
+      const saveSpinner = document.getElementById('save-receipt-spinner');
+      const errorDiv = document.getElementById('receiptModalError');
+      saveSpinner.classList.remove('hidden');
+      saveText.textContent = 'Saving...';
+      saveBtn.disabled = true;
+      errorDiv.classList.add('hidden');
+  
+      if (rows.length === 0) {
+          errorDiv.textContent = 'Please add at least one item';
+          errorDiv.classList.remove('hidden');
+          saveSpinner.classList.add('hidden');
+          saveText.textContent = 'Save Receipt';
+          saveBtn.disabled = false;
+          return;
+      }
+  
+      const items = rows.map(row => {
+          const batchNo = (row.querySelector('.batch-no').value || '').trim();
+          const itemCode = (row.querySelector('.item-code').value || '').trim();
+          const warehouse = (row.querySelector('.warehouse').value || '').trim();
+          const qty = parseFloat(row.querySelector('.qty').value) || 0;
+  
+          return {
+              batch_no: batchNo,
+              item_code: itemCode,
+              warehouse: warehouse,
+              qty: qty
+          };
+      });
+  
+      for (const item of items) {
+          if (!item.batch_no || !item.item_code || !item.warehouse || item.qty <= 0) {
+              errorDiv.textContent = 'Please fill all fields with valid values';
+              errorDiv.classList.remove('hidden');
+              saveSpinner.classList.add('hidden');
+              saveText.textContent = 'Save Receipt';
+              saveBtn.disabled = false;
+              return;
+          }
+      }
+  
+      const payload = {
+          posting_date: new Date().toISOString().split('T')[0],
+          posting_time: new Date().toTimeString().split(' ')[0],
+          machine_name: (machineInput.value || '').trim(),
+          operator_name: (operatorInput.value || '').trim(),
+          receipt_comments: (receipt_comments.value || '').trim(),
+          items: items
+      };
+  
+      try {
+          const formData = new FormData();
+          formData.append('data', JSON.stringify(payload));
+  
+          const res = await fetch('/api/method/dana_group.stock.create_material_receipt', {
+              method: 'POST',
+              credentials: 'include',
+              body: formData
+          });
+  
+          const data = await res.json();
+  
+          if (data && data.message && data.message.status === 'success') {
+              alert('Receipt created successfully!');
+              hideModal(document.getElementById('receiptModal'));
+              tbody.innerHTML = '';
+              machineInput.value = '';
+              operatorInput.value = '';
+              document.querySelectorAll('.add-receipt-row-btn')[0].click();
+          } else {
+              throw new Error(data.message?.message || 'Failed to create receipt');
+          }
+      } catch (error) {
+          console.error('Error creating receipt:', error);
+          errorDiv.textContent = 'Error: ' + error.message;
+          errorDiv.classList.remove('hidden');
+      } finally {
+          saveSpinner.classList.add('hidden');
+          saveText.textContent = 'Save Receipt';
+          saveBtn.disabled = false;
+      }
+  }
+  
+async function saveIssue() {
+    const issueForm = document.querySelector('#issueModal form');
+    const tbody = issueForm.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const salesOrderInput = document.getElementById('issue-sales-order');
+    const salesmanInput = document.getElementById('issue-salesman');
+    const machineInput = document.getElementById('issue_machine_name');
+    const operatorInput = document.getElementById('issue_operator_name');
+    const saveBtn = document.getElementById('save-issue-btn');
+    const saveText = document.getElementById('save-issue-text');
+    const saveSpinner = document.getElementById('save-issue-spinner');
+    const messageEl = document.getElementById('issue-message');
+    const issueComments = document.getElementById('issue_comments');
+
+    saveSpinner.classList.remove('hidden');
+    saveText.textContent = 'Saving...';
+    saveBtn.disabled = true;
+    messageEl.classList.add('hidden');
+
+    if (rows.length === 0) {
+        messageEl.textContent = 'Add at least one row';
+        messageEl.classList.remove('hidden');
+        messageEl.classList.add('text-red-600');
+        saveSpinner.classList.add('hidden');
+        saveText.textContent = 'Save Issue';
+        saveBtn.disabled = false;
+        return;
+    }
+
+    const items = rows.map(row => {
+        const batch = (row.querySelector('.batch-no') && row.querySelector('.batch-no').value || '').trim();
+        const item_code = (row.querySelector('.item-code') && row.querySelector('.item-code').value || '').trim();
+        const qty = parseFloat((row.querySelector('.qty') && row.querySelector('.qty').value) || 0);
+        const s_wh = (row.querySelector('.s-warehouse') && row.querySelector('.s-warehouse').value || '').trim();
+        return { batch_no: batch, item_code: item_code, qty: qty, s_warehouse: s_wh};
+    });
+
+    for (const it of items) {
+        if (!it.item_code || !it.qty || it.qty <= 0) {
+            messageEl.textContent = 'Each row requires valid Item and positive Qty';
+            messageEl.classList.remove('hidden');
+            messageEl.classList.add('text-red-600');
+            saveSpinner.classList.add('hidden');
+            saveText.textContent = 'Save Issue';
+            saveBtn.disabled = false;
+            return;
+        }
+    }
+
+    const payload = {
+        posting_date: (new Date()).toISOString().slice(0,10),
+        posting_time: (new Date()).toTimeString().split(' ')[0],
+        from_warehouse: items[0].s_warehouse || '',
+        items: items,
+        sales_order_no: salesOrderInput ? salesOrderInput.value.trim() : '',
+        salesman_name: salesmanInput ? salesmanInput.value.trim() : '',
+        machine_name: machineInput ? machineInput.value.trim() : '',
+        operator_name: operatorInput ? operatorInput.value.trim() : '',
+        custom_sales_order_no: salesOrderInput ? salesOrderInput.value.trim() : '',
+        custom_salesman_name: salesmanInput ? salesmanInput.value.trim() : '',
+        custom_machine: machineInput ? machineInput.value.trim() : '',
+        custom_operator: operatorInput ? operatorInput.value.trim() : '',
+        issue_comments: issueComments ? issueComments.value.trim() : ''
+    };
+
+
+    const form = new FormData();
+    form.append('data', JSON.stringify(payload));
+
+    try {
+        const res = await fetch('/api/method/dana_group.stock.create_material_issue', {
+            method: 'POST',
+            credentials: 'include',
+            body: form
+        });
+        const data = await res.json();
+
+        if (data && ((data.message && data.message.status === 'success') || (data.message && data.message.name) || data.status === 'success')) {
+            tbody.innerHTML = '';
+            document.querySelectorAll('.add-issue-row-btn')[0].click();
+            if (salesOrderInput) salesOrderInput.value = '';
+            if (salesmanInput) salesmanInput.value = '';
+            if (machineInput) machineInput.value = '';
+            if (operatorInput) operatorInput.value = '';
+            if (issueComments) issueComments.value = '';
+            messageEl.textContent = 'Material Issued Successfully: ' + ((data.message && data.message.name) || '');
+            messageEl.classList.remove('hidden');
+            messageEl.classList.add('text-green-600');
+        } else {
+            const err = (data && data.message && (data.message.message || data.message)) || JSON.stringify(data);
+            messageEl.textContent = 'Error creating issue: ' + err;
+            messageEl.classList.remove('hidden');
+            messageEl.classList.add('text-red-600');
+        }
+    } catch (err) {
+        console.error('Error creating issue', err);
+        messageEl.textContent = 'Error creating issue. Check console.';
+        messageEl.classList.remove('hidden');
+        messageEl.classList.add('text-red-600');
+    } finally {
+        saveSpinner.classList.add('hidden');
+        saveText.textContent = 'Save Issue';
+        saveBtn.disabled = false;
+    }
+}
+  
+  document.addEventListener('DOMContentLoaded', function() {
+      const saveReceiptBtn = document.getElementById('save-receipt-btn');
+      if (saveReceiptBtn) {
+          saveReceiptBtn.addEventListener('click', saveReceipt);
+      }
+  
+      const saveIssueBtn = document.getElementById('save-issue-btn');
+      if (saveIssueBtn) {
+          saveIssueBtn.addEventListener('click', saveIssue);
+      }
+  
+      document.querySelectorAll('.modal-open-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+              const modal = document.querySelector(this.dataset.modalTarget);
+              setTimeout(() => {
+                  const tbody = modal.querySelector('tbody');
+                  if (tbody && tbody.children.length === 0) {
+                      const addBtn = modal.querySelector('.add-receipt-row-btn') || modal.querySelector('.add-issue-row-btn');
+                      if (addBtn) addBtn.click();
+                  }
+              }, 100);
+          });
+      });
+  
+      document.addEventListener('click', function(e) {
+          if (e.target.classList.contains('remove-row-btn')) {
+              e.target.closest('tr').remove();
+          }
+      });
+  });
+  </script>
+  
+
+
+
+    <script src="/assets/dana_group/js/stock.js"></script>
+</body>
+</html>

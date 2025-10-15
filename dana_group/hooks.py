@@ -58,11 +58,15 @@ app_license = "mit"
 
 # application home page (will override Website Settings)
 # home_page = "login"
+on_login = "dana_group.login_redirect.on_login"
 
 # website user home page (by Role)
 # role_home_page = {
 # 	"Role": "home_page"
 # }
+role_home_page = {
+    "v3": "cat"   # route or page name; use "stock" for /stock
+}
 
 # Generators
 # ----------
