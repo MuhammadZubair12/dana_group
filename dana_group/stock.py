@@ -66,11 +66,15 @@ def update_batch_book_for_salesperson():
             book_for_salesperson = (payload.get("book_for_salesperson") or "").strip()
             machine = (payload.get("machine") or "").strip()
             operator = (payload.get("operator") or "").strip()
+            custom_physical_locations = (payload.get("custom_physical_locations") or "").strip()
+            custom_comments = (payload.get("custom_comments") or "").strip()
         else:
             batch_no = (frappe.form_dict.get("batch_no") or "").strip()
             book_for_salesperson = (frappe.form_dict.get("book_for_salesperson") or "").strip()
             machine = (frappe.form_dict.get("machine") or "").strip()
             operator = (frappe.form_dict.get("operator") or "").strip()
+            custom_physical_locations = (frappe.form_dict.get("custom_physical_locations") or "").strip()
+            custom_comments = (frappe.form_dict.get("custom_comments") or "").strip()
 
         if not batch_no:
             return {"status": "error", "message": _("batch_no is required")}
@@ -82,7 +86,9 @@ def update_batch_book_for_salesperson():
         update_fields = {
             "custom_book_for_salesperson": book_for_salesperson,
             "custom_machine": machine,
-            "custom_operator": operator
+            "custom_operator": operator,
+            "custom_physical_locations": custom_physical_locations,
+            "custom_comments": custom_comments
         }
         
         frappe.db.set_value("Batch", batch_no, update_fields, update_modified=True)
@@ -93,7 +99,9 @@ def update_batch_book_for_salesperson():
             "batch_no": batch_no,
             "book_for_salesperson": book_for_salesperson,
             "machine": machine,
-            "operator": operator
+            "operator": operator,
+            "custom_physical_locations": custom_physical_locations,
+            "custom_comments": custom_comments
         }
 
     except Exception as exc:
