@@ -4,7 +4,7 @@ authors = [
     { name = "Muhammad Zubair", email = "zubairmazhar23@gmail.com"}
 ]
 description = "simple design for stock entry"
-requires-python = ">=3.10"
+requires-python = ">=3.6"
 readme = "README.md"
 dynamic = ["version"]
 dependencies = [
