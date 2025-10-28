@@ -154,6 +154,10 @@ async function fetchBatchData(element) {
 
 
 
+
+
+
+
 document.addEventListener('DOMContentLoaded', function () {
   const modal = document.getElementById('editBatchModal');
   const form = document.getElementById('edit-batch-form');
