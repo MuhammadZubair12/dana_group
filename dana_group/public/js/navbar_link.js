@@ -12,7 +12,6 @@ window.addEventListener('load', function() {
             stockLink.style.fontWeight = '500';
             stockLink.style.color = '#fff';
             stockLink.style.background = 'orange';
-            stockLink.style.marginTop = '12px';
             stockLink.style.borderRadius = '4px';
             stockLink.style.textDecoration = 'none';
             stockLink.style.display = 'inline-block';
