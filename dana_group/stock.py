@@ -136,7 +136,7 @@ def update_batch_book_for_salesperson():
             "custom_book_for_salesperson": book_for_salesperson,
             "custom_machine": machine,
             "custom_operator": operator,
-            "custom_physical_locations": custom_physical_locations,
+            "physical_locations": custom_physical_locations,
             "custom_comments": custom_comments
         }
         
