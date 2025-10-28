@@ -8,12 +8,12 @@ window.addEventListener('load', function() {
             stockLink.href = '/stock_entry';
             stockLink.textContent = 'Stock Entry';
             stockLink.style.marginLeft = '15px';
-            stockLink.style.padding = '6px';
+            stockLink.style.padding = '6px 12px';
             stockLink.style.fontWeight = '500';
             stockLink.style.color = '#fff';
-            stockLink.style.background = orange;
-            stockLink.style.margin-top = '12px';
-            stockLink.style.border-radius = '4px';
+            stockLink.style.background = 'orange';
+            stockLink.style.marginTop = '12px';
+            stockLink.style.borderRadius = '4px';
             stockLink.style.textDecoration = 'none';
             stockLink.style.display = 'inline-block';
             stockLink.style.verticalAlign = 'middle';
