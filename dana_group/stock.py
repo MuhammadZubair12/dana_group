@@ -1,6 +1,7 @@
 import frappe
-from frappe import _
 from frappe.utils import flt
+from frappe import _
+
 import json
 from frappe.utils import cint
 @frappe.whitelist(allow_guest=False)
@@ -9,8 +10,9 @@ def get_batch_details(batch_no):
     Return item_code, total_batch_qty, and list of warehouses with available qty for a batch (ERPNext v13 version).
     """
     import frappe
-    from frappe.utils import flt, _
-    
+    from frappe.utils import flt
+    from frappe import _
+
     if not batch_no:
         frappe.throw(_("Batch number is required"), frappe.ValidationError)
 
@@ -48,6 +50,7 @@ def get_batch_details(batch_no):
             ]
         }
     }
+
 
 
 @frappe.whitelist(allow_guest=False)
