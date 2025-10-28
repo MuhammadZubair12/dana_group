@@ -3,9 +3,58 @@ from frappe import _
 from frappe.utils import flt
 import json
 from frappe.utils import cint
-
 @frappe.whitelist(allow_guest=False)
 def get_batch_details(batch_no):
+    """
+    Return item_code, total_batch_qty, and list of warehouses with available qty for a specific batch.
+    """
+    if not batch_no:
+        frappe.throw(_("Batch number is required"), frappe.ValidationError)
+
+    # Get batch info
+    batch = frappe.db.get_value("Batch", {"name": batch_no}, ["item"], as_dict=True)
+    if not batch:
+        return {"status": "error", "message": _("Batch not found")}
+
+    item_code = batch.get("item")
+
+    # Fetch warehouse-wise quantities for the batch
+    warehouses = frappe.db.sql("""
+        SELECT
+            sle.warehouse,
+            SUM(sbe.qty) AS qty
+        FROM `tabStock Ledger Entry` sle
+        INNER JOIN `tabSerial and Batch Entry` sbe
+            ON sbe.parent = sle.serial_and_batch_bundle
+        WHERE
+            sbe.batch_no = %s
+            AND sle.item_code = %s
+            AND sle.is_cancelled = 0
+        GROUP BY sle.warehouse
+        HAVING qty != 0
+    """, (batch_no, item_code), as_dict=True)
+
+
+    # Calculate total batch quantity
+    total_batch_qty = sum(flt(w.get("qty")) for w in warehouses)
+
+    # Prepare structured response
+    return {
+        "status": "success",
+        "message": {
+            "item_code": item_code,
+            "batch_qty": total_batch_qty,
+            "warehouses": [
+                {
+                    "warehouse": w.get("warehouse"),
+                    "available_qty": flt(w.get("qty"))
+                } for w in warehouses
+            ]
+        }
+    }
+
+@frappe.whitelist(allow_guest=False)
+def get_batch_details_old(batch_no):
     """
     Return item_code, batch_qty and list of warehouses where this item's Bin projected_qty != 0.
     Response:
