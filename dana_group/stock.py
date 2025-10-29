@@ -235,7 +235,7 @@ def create_material_receipt(data=None):
     se.stock_entry_type = "Material Receipt" if frappe.db.exists("Stock Entry Type", "Material Receipt") else "Material Receipt"
     se.purpose = "Material Receipt"
     se.custom_created_by = frappe.session.user
-    se.custom_comments = data.get("receipt_comments")
+    se.sales_order_number = data.get("receipt_comments")
     if data.get("machine_name") is not None:
         se.custom_machine = data.get("machine_name")
     if data.get("operator_name") is not None:
@@ -281,9 +281,77 @@ def get_warehouses():
         label = r.get('warehouse_name') or r.get('name')
         out.append({'name': r.get('name'), 'full_name': label})
     return out
-
 @frappe.whitelist(allow_guest=False)
 def create_material_issue(data=None):
+    if not data:
+        data = frappe.local.form_dict.get('data') or frappe.local.request.get_data(as_text=True) or None
+
+    if not data:
+        frappe.throw(_("Missing data"), exc=frappe.ValidationError)
+
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except Exception:
+            frappe.throw(_("Invalid JSON payload"), exc=frappe.ValidationError)
+
+    items = data.get("items") or []
+    if not items:
+        frappe.throw(_("At least one item is required"), exc=frappe.ValidationError)
+
+    # Create Stock Entry document
+    se = frappe.new_doc("Stock Entry")
+    se.stock_entry_type = "Material Issue"
+    se.purpose = "Material Issue"
+    se.sales_order_number = data.get("issue_comments")
+    se.company = data.get("company") or frappe.defaults.get_global_default("company")
+    se.posting_date = data.get("posting_date") or frappe.utils.nowdate()
+    se.posting_time = data.get("posting_time") or frappe.utils.nowtime()
+    se.from_warehouse = data.get("from_warehouse") or data.get("warehouse") or ""
+    se.set_posting_time = 1 if data.get("posting_time") else 0
+    se.remark = data.get("remarks") or data.get("remark") or ""
+
+    # --- NEW LOGIC ---
+    sales_order = data.get("custom_sales_order_no")
+    se.sales_order = sales_order
+
+    # Fetch Sales Person from Sales Order
+    if sales_order:
+        sales_person = frappe.db.get_value("Sales Order", sales_order, "sales_person")
+        if sales_person:
+            se.custom_salesman = sales_person
+        else:
+            frappe.log_error(f"Sales Order {sales_order} has no sales_person", "Missing Sales Person")
+    else:
+        frappe.log_error("No Sales Order provided in data", "Missing Sales Order")
+
+    # Optional extra fields
+    se.custom_machine = data.get("custom_machine") or data.get("machine_name") or ""
+    se.custom_operator = data.get("custom_operator") or data.get("operator_name") or ""
+
+    # Append items
+    for it in items:
+        qty = flt(it.get("qty") or 0)
+        if qty <= 0:
+            frappe.throw(_("Quantity must be positive for item {0}").format(it.get("item_code") or it.get("batch_no") or ""))
+        se.append("items", {
+            "item_code": it.get("item_code"),
+            "qty": qty,
+            "uom": it.get("uom") or frappe.db.get_value("Item", it.get("item_code"), "stock_uom"),
+            "s_warehouse": it.get("s_warehouse") or se.from_warehouse or "",
+            "batch_no": it.get("batch_no")
+        })
+
+    try:
+        se.insert(ignore_permissions=True)
+        se.submit()
+    except Exception as exc:
+        frappe.log_error(frappe.get_traceback(), "create_material_issue_failed")
+        return {"status": "error", "message": str(exc)}
+
+    return {"status": "success", "message": {"name": se.name}}
+@frappe.whitelist(allow_guest=False)
+def create_material_issue_old(data=None):
     if not data:
         data = frappe.local.form_dict.get('data') or frappe.local.request.get_data(as_text=True) or None
 
@@ -303,7 +371,7 @@ def create_material_issue(data=None):
     se = frappe.new_doc("Stock Entry")
     se.stock_entry_type = "Material Issue"
     se.purpose = "Material Issue"
-    se.custom_comments = data.get("issue_comments")
+    se.sales_order_number = data.get("issue_comments")
     se.company = data.get("company") or frappe.defaults.get_global_default("company")
     se.posting_date = data.get("posting_date") or frappe.utils.nowdate()
     se.posting_time = data.get("posting_time") or frappe.utils.nowtime()
@@ -311,7 +379,7 @@ def create_material_issue(data=None):
     se.set_posting_time = 1 if data.get("posting_time") else 0
     se.remark = data.get("remarks") or data.get("remark") or ""
 
-    se.custom_sales_order = data.get("custom_sales_order_no")
+    se.sales_order = data.get("custom_sales_order_no")
     se.custom_salesman = data.get("custom_salesman_name")
     se.custom_machine = data.get("custom_machine") or data.get("machine_name") or ""
     se.custom_operator = data.get("custom_operator") or data.get("operator_name") or ""
