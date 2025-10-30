@@ -168,6 +168,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const machineInput = document.getElementById('eb-machine');
   const operatorInput = document.getElementById('eb-operator');
   const bookInput = document.getElementById('eb-book-salesperson');
+  const physicalLocationInputLabel = document.getElementById('eb-physical-location-label');
   const physicalLocationInput = document.getElementById('eb-physical-location');
   const commentsInput = document.getElementById('eb-comments');
 
@@ -193,6 +194,7 @@ document.addEventListener('DOMContentLoaded', function () {
     operatorInput.value = '';
     bookInput.value = '';
     physicalLocationInput.value = '';
+    physicalLocationInputLabel.value = '';
     commentsInput.value = '';
     clearMessage();
   }
@@ -264,7 +266,7 @@ document.addEventListener('DOMContentLoaded', function () {
       machineInput.value = msg.machine_name || '';
       operatorInput.value = msg.operator_name || '';
       bookInput.value = msg.book_for_salesperson || '';
-      physicalLocationInput.value = msg.custom_physical_locations || '';
+      physicalLocationInputLabel.value = msg.custom_physical_locations || '';
       commentsInput.value = msg.custom_comments || '';
     } catch (err) {
       batchNoInput.disabled = false;

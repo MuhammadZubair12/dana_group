@@ -18,6 +18,57 @@ def get_sales_person_by_sales_order(sales_order):
 @frappe.whitelist(allow_guest=False)
 def get_batch_details(batch_no):
     """
+    Return item_code, total_batch_qty, custom_physical_locations, 
+    and list of warehouses with available qty for a batch.
+    """
+    import frappe
+    from frappe.utils import flt
+    from frappe import _
+
+    if not batch_no:
+        frappe.throw(_("Batch number is required"), frappe.ValidationError)
+    batch = frappe.db.get_value(
+        "Batch",
+        {"name": batch_no},
+        ["item", "custom_physical_locations"],
+        as_dict=True
+    )
+
+    if not batch:
+        return {"status": "error", "message": _("Batch not found")}
+
+    item_code = batch.get("item")
+    warehouses = frappe.db.sql("""
+        SELECT
+            sle.warehouse,
+            SUM(sle.actual_qty) AS qty
+        FROM `tabStock Ledger Entry` sle
+        WHERE
+            sle.batch_no = %s
+            AND sle.item_code = %s
+            AND sle.is_cancelled = 0
+        GROUP BY sle.warehouse
+        HAVING qty != 0
+    """, (batch_no, item_code), as_dict=True)
+
+    total_batch_qty = sum(flt(w.get("qty")) for w in warehouses)
+
+    return {
+        "status": "success",
+        "message": {
+            "item_code": item_code,
+            "custom_physical_locations": batch.get("custom_physical_locations") or "",
+            "batch_qty": total_batch_qty,
+            "warehouses": [
+                {"warehouse": w.get("warehouse"), "available_qty": flt(w.get("qty"))}
+                for w in warehouses
+            ]
+        }
+    }
+
+@frappe.whitelist(allow_guest=False)
+def get_batch_details_old(batch_no):
+    """
     Return item_code, total_batch_qty, and list of warehouses with available qty for a batch (ERPNext v13 version).
     """
     import frappe
@@ -63,55 +114,6 @@ def get_batch_details(batch_no):
     }
 
 
-
-@frappe.whitelist(allow_guest=False)
-def get_batch_details_old(batch_no):
-    """
-    Return item_code, batch_qty and list of warehouses where this item's Bin projected_qty != 0.
-    Response:
-    {
-      "status": "success",
-      "message": {
-        "item_code": "...",
-        "batch_qty": 123,
-        "warehouses": [
-          {"warehouse": "Stores - DC", "available_qty": 50},
-          ...
-        ]
-      }
-    }
-    """
-    if not batch_no:
-        frappe.throw(_("Batch number is required"), frappe.ValidationError)
-
-    batch = frappe.db.get_value("Batch", {"name": batch_no}, ["item", "batch_qty"], as_dict=True)
-    if not batch:
-        return {"status": "error", "message": _("Batch not found")}
-
-    item_code = batch.get("item")
-    batch_qty = flt(batch.get("batch_qty") or 0.0)
-
-    warehouses = []
-    bins = frappe.db.sql(
-        """
-        SELECT warehouse, projected_qty AS qty
-        FROM `tabBin`
-        WHERE item_code = %s AND projected_qty != 0
-        """,
-        item_code, as_dict=True
-    )
-
-    for b in bins:
-        warehouses.append({
-            "warehouse": b.get("warehouse"),
-            "available_qty": flt(b.get("qty") or 0.0)
-        })
-
-    return {"status": "success", "message": {
-        "item_code": item_code,
-        "batch_qty": batch_qty,
-        "warehouses": warehouses
-    }}
 
 @frappe.whitelist(allow_guest=False)
 def update_batch_book_for_salesperson():
