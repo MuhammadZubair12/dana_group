@@ -4,6 +4,17 @@ from frappe import _
 
 import json
 from frappe.utils import cint
+
+@frappe.whitelist()
+def get_sales_person_by_sales_order(sales_order):
+    """Fetch the Sales Person name from Sales Order"""
+    if not sales_order:
+        frappe.throw(_("Missing Sales Order"))
+    sales_person = frappe.db.get_value("Sales Order", sales_order, "sales_person")
+    if not sales_person:
+        sales_person = frappe.db.get_value("Sales Team", {"parent": sales_order}, "sales_person")
+
+    return sales_person or ""
 @frappe.whitelist(allow_guest=False)
 def get_batch_details(batch_no):
     """
@@ -133,11 +144,11 @@ def update_batch_book_for_salesperson():
         except frappe.DoesNotExistError:
             return {"status": "error", "message": _("Batch {0} not found").format(batch_no)}
         update_fields = {
-            "custom_book_for_salesperson": book_for_salesperson,
+            "book_for_salesperson": book_for_salesperson,
             "custom_machine": machine,
             "custom_operator": operator,
             "physical_locations": custom_physical_locations,
-            "custom_comments": custom_comments
+            "batch_desc": custom_comments
         }
         
         frappe.db.set_value("Batch", batch_no, update_fields, update_modified=True)
@@ -298,8 +309,6 @@ def create_material_issue(data=None):
     items = data.get("items") or []
     if not items:
         frappe.throw(_("At least one item is required"), exc=frappe.ValidationError)
-
-    # Create Stock Entry document
     se = frappe.new_doc("Stock Entry")
     se.stock_entry_type = "Material Issue"
     se.purpose = "Material Issue"
@@ -310,12 +319,8 @@ def create_material_issue(data=None):
     se.from_warehouse = data.get("from_warehouse") or data.get("warehouse") or ""
     se.set_posting_time = 1 if data.get("posting_time") else 0
     se.remark = data.get("remarks") or data.get("remark") or ""
-
-    # --- NEW LOGIC ---
     sales_order = data.get("custom_sales_order_no")
     se.sales_order = sales_order
-
-    # Fetch Sales Person from Sales Order
     if sales_order:
         sales_person = frappe.db.get_value("Sales Order", sales_order, "sales_person")
         if sales_person:
@@ -324,12 +329,8 @@ def create_material_issue(data=None):
             frappe.log_error(f"Sales Order {sales_order} has no sales_person", "Missing Sales Person")
     else:
         frappe.log_error("No Sales Order provided in data", "Missing Sales Order")
-
-    # Optional extra fields
     se.custom_machine = data.get("custom_machine") or data.get("machine_name") or ""
     se.custom_operator = data.get("custom_operator") or data.get("operator_name") or ""
-
-    # Append items
     for it in items:
         qty = flt(it.get("qty") or 0)
         if qty <= 0:

@@ -194,9 +194,12 @@
             {% endfor %}
           </select>
 
-          <input id="issue-salesman" value=" {{ frappe.session.user }}" type="text" class="border p-2 rounded w-full bg-gray-100" placeholder="Salesman"
+
+          <!-- <input id="issue-salesman" value=" {{ frappe.session.user }}" type="text" class="border p-2 rounded w-full bg-gray-100" placeholder="Salesman"
+            readonly /> -->
+          <input id="issue-salesman" type="text" class="border p-2 rounded w-full bg-gray-100" placeholder="Salesman"
             readonly />
-        
+
 
 
           <select id="issue_machine_name" class="border p-2 rounded w-full">
@@ -304,11 +307,11 @@
           </select>
           <input id="eb-book-salesperson" type="text" placeholder="Book for Salesperson"
             class="border p-2 rounded w-full md:col-span-2" />
-            <input id="eb-physical-location" type="text" placeholder="Physical Location"
-          class="border p-2 rounded w-full md:col-span-2" />
+          <input id="eb-physical-location" type="text" placeholder="Physical Location"
+            class="border p-2 rounded w-full md:col-span-2" />
 
-        <textarea id="eb-comments" placeholder="Comments"
-          class="border p-2 rounded w-full md:col-span-2 h-20"></textarea>
+          <textarea id="eb-comments" placeholder="Comments"
+            class="border p-2 rounded w-full md:col-span-2 h-20"></textarea>
         </div>
         <div class="flex justify-end gap-4 mt-6 items-center">
           <div id="edit-batch-message" class="text-sm hidden"></div>
@@ -331,12 +334,13 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
-      const salesOrderSelect = document.getElementById("issue-sales-order");
+      const salesOrderSelect = document.getElementById('issue-sales-order');
       $(salesOrderSelect).select2({
         placeholder: "Select Sales Order",
         allowClear: true,
         width: "100%"
       });
+   
       const machineSelect = document.getElementById("machine_name");
       const operatorSelect = document.getElementById("operator_name");
       const saveBtn = document.getElementById("save-receipt-btn");
@@ -400,17 +404,23 @@
     document.addEventListener("DOMContentLoaded", function () {
       const issueForm = document.querySelector("#issueModal form");
       const saveIssueBtn = document.getElementById("save-issue-btn");
-      const errorDiv = document.createElement("div");
+      const errorDiv = document.createElement("div"); 
 
       errorDiv.id = "issueModalError";
       errorDiv.className = "hidden bg-red-50 border border-red-200 text-red-700 p-2 mt-2 rounded mb-4";
       issueForm.insertBefore(errorDiv, issueForm.querySelector(".flex.justify-end"));
 
-      const requiredFields = {
+      const requiredFields_old = {
         "issue-sales-order": "Sales Order",
         "issue-salesman": "Salesman",
         "issue-machine": "Machine",
         "issue-operator": "Operator"
+      };
+      const requiredFields = {
+        "issue-sales-order": "Sales Order",
+        "issue-salesman": "Salesman",
+        "issue_machine_name": "Machine",
+        "issue_operator_name": "Operator"
       };
 
       function validateIssueForm() {
@@ -850,6 +860,7 @@
 
 
   <script src="/assets/dana_group/js/stock.js"></script>
+
 </body>
 {% endif %}
 

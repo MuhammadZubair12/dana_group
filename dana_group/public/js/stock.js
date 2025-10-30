@@ -176,6 +176,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const saveSpinner = document.getElementById('edit-batch-save-spinner');
   const cancelBtn = document.getElementById('edit-batch-cancel');
   const messageEl = document.getElementById('edit-batch-message');
+  
 
   function openModal() {
     modal.classList.remove('opacity-0', 'pointer-events-none');
@@ -330,3 +331,5 @@ document.addEventListener('DOMContentLoaded', function () {
     if (batchNo) batchNoInput.dispatchEvent(new Event('blur'));
   };
 });
+
+
