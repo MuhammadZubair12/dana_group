@@ -1,5 +1,33 @@
 window.addEventListener('load', function() {
-    function addStockEntryLink() {
+    async function userHasRole(roleName) {
+        try {
+            const res = await fetch('/api/method/frappe.client.get', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    doctype: 'User',
+                    name: frappe.session.user
+                })
+            });
+
+            const data = await res.json();
+            if (data.message && Array.isArray(data.message.roles)) {
+                return data.message.roles.some(r => r.role === roleName);
+            }
+            return false;
+        } catch (err) {
+            console.error('Error checking roles:', err);
+            return false;
+        }
+    }
+
+    async function addStockEntryLink() {
+        const hasRole = await userHasRole('v3'); // ✅ Check if user has "v3" role
+        if (!hasRole) return;
+
         const brand = document.querySelector('a.navbar-brand.navbar-home');
 
         if (brand && !document.getElementById('stock-entry-link')) {
