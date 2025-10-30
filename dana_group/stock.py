@@ -18,7 +18,7 @@ def get_sales_person_by_sales_order(sales_order):
 @frappe.whitelist(allow_guest=False)
 def get_batch_details(batch_no):
     """
-    Return item_code, total_batch_qty, custom_physical_locations, 
+    Return item_code, total_batch_qty, physical_locations, 
     and list of warehouses with available qty for a batch.
     """
     import frappe
@@ -30,7 +30,7 @@ def get_batch_details(batch_no):
     batch = frappe.db.get_value(
         "Batch",
         {"name": batch_no},
-        ["item", "custom_physical_locations"],
+        ["item", "physical_locations"],
         as_dict=True
     )
 
@@ -57,7 +57,7 @@ def get_batch_details(batch_no):
         "status": "success",
         "message": {
             "item_code": item_code,
-            "custom_physical_locations": batch.get("custom_physical_locations") or "",
+            "custom_physical_locations": batch.get("physical_locations") or "",
             "batch_qty": total_batch_qty,
             "warehouses": [
                 {"warehouse": w.get("warehouse"), "available_qty": flt(w.get("qty"))}
