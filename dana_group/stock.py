@@ -144,7 +144,7 @@ def update_batch_book_for_salesperson():
         except frappe.DoesNotExistError:
             return {"status": "error", "message": _("Batch {0} not found").format(batch_no)}
         update_fields = {
-            "book_for_salesperson": book_for_salesperson,
+            "booked_for_salesperson": book_for_salesperson,
             "custom_machine": machine,
             "custom_operator": operator,
             "physical_locations": custom_physical_locations,
