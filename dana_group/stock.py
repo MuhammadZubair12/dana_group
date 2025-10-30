@@ -152,6 +152,10 @@ def update_batch_book_for_salesperson():
             "physical_locations": custom_physical_locations,
             "batch_desc": custom_comments
         }
+        if custom_physical_locations:
+            update_fields["custom_physical_location"] = custom_physical_locations
+        else:
+            update_fields["custom_physical_location"] = batch_doc.custom_physical_location
         
         frappe.db.set_value("Batch", batch_no, update_fields, update_modified=True)
 
