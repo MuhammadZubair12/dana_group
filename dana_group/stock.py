@@ -15,29 +15,61 @@ def get_sales_person_by_sales_order(sales_order):
         sales_person = frappe.db.get_value("Sales Team", {"parent": sales_order}, "sales_person")
 
     return sales_person or ""
+
+
+import frappe
+from frappe.utils import flt
+from frappe import _
+import json
+
+
+def _first_existing_field(doctype, candidates):
+    meta = frappe.get_meta(doctype)
+    for f in candidates:
+        if meta.has_field(f):
+            return f
+    return None
+
+
+def _get_doc_value(doc, candidates, default=""):
+    for f in candidates:
+        if hasattr(doc, f):
+            v = getattr(doc, f)
+            if v not in (None, ""):
+                return v
+    return default
+
+
+def _set_doc_value_if_field_exists(doc, candidates, value):
+    meta = frappe.get_meta(doc.doctype)
+    for f in candidates:
+        if meta.has_field(f):
+            setattr(doc, f, value)
+            return f
+    return None
+
+
 @frappe.whitelist(allow_guest=False)
 def get_batch_details(batch_no):
     """
-    Return item_code, total_batch_qty, physical_locations, 
-    and list of warehouses with available qty for a batch.
+    Returns details for batch + warehouse wise available qty
+    AND also returns fields needed by Batch Edit modal:
+      - book_for_salesperson
+      - machine_name
+      - operator_name
+      - custom_physical_locations
+      - custom_comments
     """
-    import frappe
-    from frappe.utils import flt
-    from frappe import _
-
     if not batch_no:
         frappe.throw(_("Batch number is required"), frappe.ValidationError)
-    batch = frappe.db.get_value(
-        "Batch",
-        {"name": batch_no},
-        ["item", "physical_locations"],
-        as_dict=True
-    )
 
-    if not batch:
+    try:
+        batch_doc = frappe.get_doc("Batch", batch_no)
+    except frappe.DoesNotExistError:
         return {"status": "error", "message": _("Batch not found")}
 
-    item_code = batch.get("item")
+    item_code = batch_doc.item
+
     warehouses = frappe.db.sql("""
         SELECT
             sle.warehouse,
@@ -53,53 +85,36 @@ def get_batch_details(batch_no):
 
     total_batch_qty = sum(flt(w.get("qty")) for w in warehouses)
 
-    return {
-        "status": "success",
-        "message": {
-            "item_code": item_code,
-            "custom_physical_locations": batch.get("physical_locations") or "",
-            "batch_qty": total_batch_qty,
-            "warehouses": [
-                {"warehouse": w.get("warehouse"), "available_qty": flt(w.get("qty"))}
-                for w in warehouses
-            ]
-        }
-    }
+    # ---- read values from whichever fields exist on your Batch doctype ----
+    book_for_salesperson = _get_doc_value(batch_doc, [
+        "custom_book_for_salesperson",
+        "booked_for_salesperson",
+        "book_for_salesperson",
+    ], default="")
 
-@frappe.whitelist(allow_guest=False)
-def get_batch_details_old(batch_no):
-    """
-    Return item_code, total_batch_qty, and list of warehouses with available qty for a batch (ERPNext v13 version).
-    """
-    import frappe
-    from frappe.utils import flt
-    from frappe import _
+    machine_name = _get_doc_value(batch_doc, [
+        "custom_machine",
+        "machine",
+        "custom_machine_name",
+    ], default="")
 
-    if not batch_no:
-        frappe.throw(_("Batch number is required"), frappe.ValidationError)
+    operator_name = _get_doc_value(batch_doc, [
+        "custom_operator",
+        "operator",
+        "custom_operator_name",
+    ], default="")
 
-    # Get batch info
-    batch = frappe.db.get_value("Batch", {"name": batch_no}, ["item"], as_dict=True)
-    if not batch:
-        return {"status": "error", "message": _("Batch not found")}
+    physical_locations = _get_doc_value(batch_doc, [
+        "physical_locations",
+        "custom_physical_locations",
+    ], default="")
 
-    item_code = batch.get("item")
-
-    # Fetch warehouse-wise quantities
-    warehouses = frappe.db.sql("""
-        SELECT
-            sle.warehouse,
-            SUM(sle.actual_qty) AS qty
-        FROM `tabStock Ledger Entry` sle
-        WHERE
-            sle.batch_no = %s
-            AND sle.item_code = %s
-            AND sle.is_cancelled = 0
-        GROUP BY sle.warehouse
-        HAVING qty != 0
-    """, (batch_no, item_code), as_dict=True)
-
-    total_batch_qty = sum(flt(w.get("qty")) for w in warehouses)
+    comments = _get_doc_value(batch_doc, [
+        "batch_desc",
+        "custom_batch_desc",
+        "custom_comments",
+        "description",
+    ], default="")
 
     return {
         "status": "success",
@@ -109,34 +124,30 @@ def get_batch_details_old(batch_no):
             "warehouses": [
                 {"warehouse": w.get("warehouse"), "available_qty": flt(w.get("qty"))}
                 for w in warehouses
-            ]
+            ],
+
+            # keys your JS expects:
+            "book_for_salesperson": book_for_salesperson,
+            "machine_name": machine_name,
+            "operator_name": operator_name,
+            "custom_physical_locations": physical_locations,
+            "custom_comments": comments,
         }
     }
-
 
 
 @frappe.whitelist(allow_guest=False)
 def update_batch_book_for_salesperson():
     try:
         raw = frappe.local.form_dict.get("data")
-        if raw:
-            try:
-                payload = frappe.parse_json(raw)
-            except Exception:
-                return {"status": "error", "message": _("Invalid JSON in 'data' field")}
-            batch_no = (payload.get("batch_no") or "").strip()
-            book_for_salesperson = (payload.get("book_for_salesperson") or "").strip()
-            machine = (payload.get("machine") or "").strip()
-            operator = (payload.get("operator") or "").strip()
-            custom_physical_locations = (payload.get("custom_physical_locations") or "").strip()
-            custom_comments = (payload.get("custom_comments") or "").strip()
-        else:
-            batch_no = (frappe.form_dict.get("batch_no") or "").strip()
-            book_for_salesperson = (frappe.form_dict.get("book_for_salesperson") or "").strip()
-            machine = (frappe.form_dict.get("machine") or "").strip()
-            operator = (frappe.form_dict.get("operator") or "").strip()
-            custom_physical_locations = (frappe.form_dict.get("custom_physical_locations") or "").strip()
-            custom_comments = (frappe.form_dict.get("custom_comments") or "").strip()
+        payload = frappe.parse_json(raw) if raw else frappe.form_dict
+
+        batch_no = (payload.get("batch_no") or "").strip()
+        book_for_salesperson = (payload.get("book_for_salesperson") or "").strip()
+        machine = (payload.get("machine") or "").strip()
+        operator = (payload.get("operator") or "").strip()
+        custom_physical_locations = (payload.get("custom_physical_locations") or "").strip()
+        custom_comments = (payload.get("custom_comments") or "").strip()
 
         if not batch_no:
             return {"status": "error", "message": _("batch_no is required")}
@@ -145,70 +156,45 @@ def update_batch_book_for_salesperson():
             batch_doc = frappe.get_doc("Batch", batch_no)
         except frappe.DoesNotExistError:
             return {"status": "error", "message": _("Batch {0} not found").format(batch_no)}
-        update_fields = {
-            "booked_for_salesperson": book_for_salesperson,
-            "custom_machine": machine,
-            "custom_operator": operator,
-            "physical_locations": custom_physical_locations,
-            "batch_desc": custom_comments
-        }
-        if custom_physical_locations:
-            update_fields["physical_locations"] = custom_physical_locations
-        else:
-            update_fields["physical_locations"] = batch_doc.physical_locations
-        
-        frappe.db.set_value("Batch", batch_no, update_fields, update_modified=True)
+
+        # ✅ update all required fields
+        batch_doc.booked_for_salesperson = book_for_salesperson
+        batch_doc.custom_book_for_salesperson = book_for_salesperson
+
+        batch_doc.custom_machine = machine
+        batch_doc.custom_operator = operator
+
+        if custom_physical_locations != "":
+            batch_doc.physical_locations = custom_physical_locations
+
+        # ✅ this is the important part
+        batch_doc.batch_desc = custom_comments
+
+        batch_doc.save(ignore_permissions=True)
+        frappe.db.commit()
 
         return {
             "status": "success",
             "message": _("Batch updated successfully"),
-            "batch_no": batch_no,
-            "book_for_salesperson": book_for_salesperson,
-            "machine": machine,
-            "operator": operator,
-            "custom_physical_locations": custom_physical_locations,
-            "custom_comments": custom_comments
+            "batch_no": batch_no
         }
 
-    except Exception as exc:
+    except Exception:
         frappe.log_error(message=frappe.get_traceback(), title="update_batch_book_for_salesperson error")
-        return {"status": "error", "message": str(exc)}
+        return {"status": "error", "message": _("Unexpected error. Check error log.")}
 
-@frappe.whitelist(allow_guest=False)
-def update_batch_book_for_salesperson_old():
-    try:
-        raw = frappe.local.form_dict.get("data")
-        if raw:
-            try:
-                payload = frappe.parse_json(raw)
-            except Exception:
-                return {"status": "error", "message": _("Invalid JSON in 'data' field")}
-            batch_no = (payload.get("batch_no") or "").strip()
-            book_for_salesperson = (payload.get("book_for_salesperson") or "").strip()
-        else:
-            batch_no = (frappe.form_dict.get("batch_no") or "").strip()
-            book_for_salesperson = (frappe.form_dict.get("book_for_salesperson") or "").strip()
 
-        if not batch_no:
-            return {"status": "error", "message": _("batch_no is required")}
 
-        try:
-            frappe.get_doc("Batch", batch_no)
-        except frappe.DoesNotExistError:
-            return {"status": "error", "message": _("Batch {0} not found").format(batch_no)}
 
-        frappe.db.set_value("Batch", batch_no, "custom_book_for_salesperson", book_for_salesperson, update_modified=True)
 
-        return {
-            "status": "success",
-            "message": _("Batch updated"),
-            "batch_no": batch_no,
-            "book_for_salesperson": book_for_salesperson
-        }
 
-    except Exception as exc:
-        frappe.log_error(message=frappe.get_traceback(), title="update_batch_book_for_salesperson error")
-        return {"status": "error", "message": str(exc)}
+
+
+
+
+
+
+
 def _warehouse_exists(name):
     return bool(frappe.db.exists("Warehouse", name))
 
